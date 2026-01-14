@@ -3,6 +3,7 @@ package com.hzcu.loginmod.event;
 import com.hzcu.loginmod.LoginMod;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -15,6 +16,14 @@ import java.util.UUID;
  * 处理未登录玩家的行为限制
  */
 public class PlayerRestrictionHandler {
+    
+    /**
+     * 检查是否是假人玩家
+     * 假人玩家用于自动化模组，应该被允许操作
+     */
+    private boolean isFakePlayer(ServerPlayer player) {
+        return player instanceof FakePlayer;
+    }
 
     /**
      * 限制玩家移动
@@ -22,7 +31,20 @@ public class PlayerRestrictionHandler {
     @SubscribeEvent
     public void onPlayerMove(LivingEvent.LivingTickEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            // 允许假人玩家
+            if (isFakePlayer(player)) {
+                return;
+            }
+            
             UUID playerUUID = player.getUUID();
+            String playerName = player.getName().getString();
+            
+            // 如果玩家在白名单中，自动标记为已登录
+            if (LoginMod.isPlayerWhitelisted(playerName) && !LoginMod.isPlayerLoggedIn(playerUUID)) {
+                LoginMod.markPlayerLoggedIn(playerUUID);
+                player.sendSystemMessage(Component.literal("§a您在白名单中，已自动登录！"));
+                return;
+            }
             
             // 如果玩家未登录，阻止移动
             if (!LoginMod.isPlayerLoggedIn(playerUUID)) {
@@ -43,6 +65,11 @@ public class PlayerRestrictionHandler {
     @SubscribeEvent
     public void onBlockBreak(BlockEvent.BreakEvent event) {
         if (event.getPlayer() instanceof ServerPlayer player) {
+            // 允许假人玩家
+            if (isFakePlayer(player)) {
+                return;
+            }
+            
             UUID playerUUID = player.getUUID();
             
             // 如果玩家未登录，取消破坏方块
@@ -59,6 +86,11 @@ public class PlayerRestrictionHandler {
     @SubscribeEvent
     public void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            // 允许假人玩家
+            if (isFakePlayer(player)) {
+                return;
+            }
+            
             UUID playerUUID = player.getUUID();
             
             // 如果玩家未登录，取消放置方块
@@ -75,6 +107,11 @@ public class PlayerRestrictionHandler {
     @SubscribeEvent
     public void onPlayerInteractBlock(PlayerInteractEvent.RightClickBlock event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            // 允许假人玩家
+            if (isFakePlayer(player)) {
+                return;
+            }
+            
             UUID playerUUID = player.getUUID();
             
             // 如果玩家未登录，取消交互
@@ -91,6 +128,11 @@ public class PlayerRestrictionHandler {
     @SubscribeEvent
     public void onPlayerInteractItem(PlayerInteractEvent.RightClickItem event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            // 允许假人玩家
+            if (isFakePlayer(player)) {
+                return;
+            }
+            
             UUID playerUUID = player.getUUID();
             
             // 如果玩家未登录，取消使用物品
@@ -107,6 +149,11 @@ public class PlayerRestrictionHandler {
     @SubscribeEvent
     public void onPlayerAttack(PlayerInteractEvent.LeftClickEmpty event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            // 允许假人玩家
+            if (isFakePlayer(player)) {
+                return;
+            }
+            
             UUID playerUUID = player.getUUID();
             
             // 如果玩家未登录，提醒玩家
@@ -133,14 +180,25 @@ public class PlayerRestrictionHandler {
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            player.sendSystemMessage(Component.literal("§e============HZCU-CA—Minecraft==========="));
-            player.sendSystemMessage(Component.literal("§e欢迎来到服务器！"));
-            player.sendSystemMessage(Component.literal("§e请使用 §6/login <用户名> <密码> §e进行登录"));
-            player.sendSystemMessage(Component.literal("§e用户名为学号或工号，密码为证件号码的后六位（X大写）"));
-            player.sendSystemMessage(Component.literal("§e若有疑问或新增非校内用户，请联系管理员"));
-            player.sendSystemMessage(Component.literal("§e========================================"));
+            String playerName = player.getName().getString();
             
-            LoginMod.LOGGER.info("Player {} login the server", player.getName().getString());
+            // 检查是否在白名单中
+            if (LoginMod.isPlayerWhitelisted(playerName)) {
+                LoginMod.markPlayerLoggedIn(player.getUUID());
+                player.sendSystemMessage(Component.literal("§e============HZCU-CA—Minecraft==========="));
+                player.sendSystemMessage(Component.literal("§a欢迎来到服务器！"));
+                player.sendSystemMessage(Component.literal("§a您在白名单中，已自动登录！"));
+                player.sendSystemMessage(Component.literal("§e========================================"));
+                LoginMod.LOGGER.info("Player {} (whitelisted) auto-logged in", playerName);
+            } else {
+                player.sendSystemMessage(Component.literal("§e============HZCU-CA—Minecraft==========="));
+                player.sendSystemMessage(Component.literal("§e欢迎来到服务器！"));
+                player.sendSystemMessage(Component.literal("§e请使用 §6/login <用户名> <密码> §e进行登录"));
+                player.sendSystemMessage(Component.literal("§e用户名为学号或工号，密码为证件号码的后六位（X大写）"));
+                player.sendSystemMessage(Component.literal("§e若有疑问或新增非校内用户，请联系管理员"));
+                player.sendSystemMessage(Component.literal("§e========================================"));
+                LoginMod.LOGGER.info("Player {} login the server", playerName);
+            }
         }
     }
 }

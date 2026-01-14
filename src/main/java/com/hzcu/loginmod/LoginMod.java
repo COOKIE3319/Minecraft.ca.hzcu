@@ -1,6 +1,8 @@
 package com.hzcu.loginmod;
 
 import com.hzcu.loginmod.command.LoginCommand;
+import com.hzcu.loginmod.command.WhitelistCommand;
+import com.hzcu.loginmod.config.WhitelistConfig;
 import com.hzcu.loginmod.event.PlayerRestrictionHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -28,6 +30,9 @@ public class LoginMod {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         modEventBus.addListener(this::commonSetup);
         
+        // 初始化白名单配置
+        WhitelistConfig.init();
+        
         // 注册事件处理器
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new PlayerRestrictionHandler());
@@ -42,6 +47,7 @@ public class LoginMod {
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
         LoginCommand.register(event.getDispatcher());
+        WhitelistCommand.register(event.getDispatcher());
     }
     
     /**
@@ -65,5 +71,12 @@ public class LoginMod {
     public static void removePlayerLoginStatus(UUID playerUUID) {
         loggedInPlayers.remove(playerUUID);
         LOGGER.info("Player {} login status removed", playerUUID);
+    }
+    
+    /**
+     * 检查玩家是否在白名单中（不需要登录）
+     */
+    public static boolean isPlayerWhitelisted(String playerName) {
+        return WhitelistConfig.isWhitelisted(playerName);
     }
 }
